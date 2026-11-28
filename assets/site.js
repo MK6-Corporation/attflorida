@@ -9,6 +9,14 @@ const FORM_ENDPOINT = "";
 const PASSPORT_MIN_VALID = "2027-11-01"; // 6 months after the May 1, 2027 return
 const MAX_FILE_MB = 8;
 const PRICE_PP = 3570;
+const PAYMENT_DEADLINE = new Date(2027, 2, 7); // balance fully paid by the first week of March 2027
+
+// Monthly installments start next month and must end by March 2027, capped at 4.
+function maxInstallments(today = new Date()) {
+  if (today > PAYMENT_DEADLINE) return 0;
+  const months = (2027 - today.getFullYear()) * 12 + (2 - today.getMonth()); // months until March 2027
+  return Math.max(1, Math.min(4, months));
+}
 
 /* ---------- Menu ---------- */
 (() => {
@@ -97,7 +105,15 @@ const PRICE_PP = 3570;
     if (plan === "Pay in full") return `Total for ${who}: ${usd(total)}, paid in full. Airfare not included.`;
     const n = Number(instSel.value);
     const each = Math.round((total / 2 / n) * 100) / 100;
-    return `Total for ${who}: ${usd(total)}. 50% deposit: ${usd(total / 2)}. Then ${n === 1 ? "1 payment" : n + " installments"} of ${usd(each)}. Airfare not included.`;
+    return `Total for ${who}: ${usd(total)}. 50% deposit: ${usd(total / 2)}. Then ${n === 1 ? "1 payment" : n + " monthly installments"} of ${usd(each)}, fully paid by the first week of March 2027. Airfare not included.`;
+  }
+  const maxN = maxInstallments();
+  [...instSel.options].forEach((o) => { o.disabled = Number(o.value) > maxN; o.hidden = o.disabled; });
+  if (Number(instSel.value) > maxN) instSel.value = String(Math.max(1, maxN));
+  if (maxN === 0) {
+    const full = form.querySelector('input[name="plan"][value="Pay in full"]');
+    full.checked = true;
+    form.querySelector('input[name="plan"][value="50% deposit + installments"]').closest("label").hidden = true;
   }
   function renderPlan() {
     instField.hidden = form.querySelector('input[name="plan"]:checked')?.value === "Pay in full";
